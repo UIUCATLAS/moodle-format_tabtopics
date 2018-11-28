@@ -19,6 +19,10 @@ $string['section0name'] = 'General';
 $string['sectionname'] = 'Topic';
 $string['currentsection'] = 'This topic';
 $string['currenttopic'] = 'This topic';
+
+$string['editsectionname'] = 'Edit section name';
+$string['newsectionname'] = 'New name for section {$a}';
+
 $string['page-course-view-topics'] = 'Any course main page in tabtopics format';
 $string['page-course-view-topics-x'] = 'Any course page in tabtopics format';
 $string['hidefromothers'] = 'Hide topic';

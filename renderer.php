@@ -107,9 +107,10 @@ class format_tabtopics_renderer extends format_section_renderer_base
      * Display a hidden section message
      * 
      * @param type $section
+     * @param int|stdClass $courseorid The course to get the section name for (object or just course id)
      */
-    public function section_hidden($section) {
-        echo parent::section_hidden($section);
+    public function section_hidden($section, $courseorid = null) {
+        echo parent::section_hidden($section, $courseorid);
     }
     
 }

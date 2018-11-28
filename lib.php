@@ -15,6 +15,14 @@
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later  **
  * *************************************************************************
  * ************************************************************************ */
+/*
+ * Add method: inplace_editable_render_section_name()
+ * and functions format_tabtopics_inplace_editable() and
+ *                   callback_tabtopics_definition()
+ * so that in-place editing of section names works.
+ * 2017 Larry Broda<lbroda@illinois.edu>/University of Illinois at Urbana Champaign {@link http://illinois.edu}
+*/
+
 defined('MOODLE_INTERNAL') || die();
 require_once($CFG->dirroot . '/course/format/lib.php');
 
@@ -38,6 +46,7 @@ class format_tabtopics extends format_base {
      * @return string Display name that the course format prefers, e.g. "Topic 2"
      */
     public function get_section_name($section) {
+
         $section = $this->get_section($section);
         if ((string) $section->name !== '') {
             return format_string($section->name, true, array('context' => context_course::instance($this->courseid)));
@@ -110,6 +119,17 @@ class format_tabtopics extends format_base {
         return $ajaxsupport;
     }
 
+    /**
+     * Whether this format allows to delete sections
+     *
+     * Do not call this function directly, instead use {@link course_can_delete_section()}
+     *
+     * @param int|stdClass|section_info $section
+     * @return bool
+     */
+    public function can_delete_section($section) {
+        return true;
+    }
     /**
      * Loads all of the course sections into the navigation
      *
@@ -274,9 +294,9 @@ class format_tabtopics extends format_base {
      * Returns whether the current course should have the section 0 as a header
      * or a tab. If for any reason the setting doesn't exist then it defaults to
      * header. (false)
-     * 
+     *
      * Defaults to false if setting doesn't exist.
-     * 
+     *
      * @global type $DB
      * @return boolean
      */
@@ -300,12 +320,12 @@ class format_tabtopics extends format_base {
 
         return $option->value == 1 ? true : false;
     }
-    
+
     /**
      * Returns whether the current course should save the last tab the user clicked or returned to the default tab
-     * 
+     *
      * Defaults to false if setting doesn't exist.
-     * 
+     *
      * @global type $DB
      * @return boolean
      */
@@ -371,7 +391,7 @@ class format_tabtopics extends format_base {
 
     /**
      * Determines whether the unavaliable override is avaliable
-     * 
+     *
      * @param type $thissection
      * @return boolean
      */
@@ -385,7 +405,7 @@ class format_tabtopics extends format_base {
 
     /**
      * Determines whether the user can access or view the section
-     * 
+     *
      * @global Object $USER
      * @global Object $CFG
      * @param Object $thissection
@@ -395,9 +415,9 @@ class format_tabtopics extends format_base {
         // Show the section if the user is permitted to access it, OR if it's not available
         // but showavailability is turned on (and there is some available info text).
         $showsection = $thissection->uservisible;
-            
+
         //print_object($thissection);
-        
+
         if (!$showsection) {
             return false;
         }
@@ -405,4 +425,86 @@ class format_tabtopics extends format_base {
         return true;
     }
 
+    /**
+     * Returns whether this course format allows the activity to
+     * have "triple visibility state" - visible always, hidden on course page but available, hidden.
+     *
+     * @param stdClass|cm_info $cm course module (may be null if we are displaying a form for adding a module)
+     * @param stdClass|section_info $section section where this module is located or will be added to
+     * @return bool
+     */
+    public function allow_stealth_module_visibility($cm, $section) {
+        // Allow the third visibility state inside visible sections or in section 0.
+        return !$section->section || $section->visible;
+    }
+
+   public function section_action($section, $action, $sr) {
+		global $PAGE;
+
+		if ($section->section && ($action === 'setmarker' || $action === 'removemarker')) {
+		// Format 'topics' allows to set and remove markers in addition to common section actions.
+			require_capability('moodle/course:setcurrentsection', context_course::instance($this->courseid));
+			course_set_marker($this->courseid, ($action === 'setmarker') ? $section->section : 0);
+			return null;
+		}
+
+		// For show/hide actions call the parent method and return the new content for .section_availability element.
+		$rv = parent::section_action($section, $action, $sr);
+		$renderer = $PAGE->get_renderer('format_topics');
+		$rv['section_availability'] = $renderer->section_availability($this->get_section($section));
+		return $rv;
+	}
+
+    /**
+     * Prepares the templateable object to display section name.
+     *
+     * @param \section_info|\stdClass $section
+     * @param bool $linkifneeded
+     * @param bool $editable
+     * @param null|lang_string|string $edithint
+     * @param null|lang_string|string $editlabel
+     * @return \core\output\inplace_editable
+     */
+    public function inplace_editable_render_section_name($section, $linkifneeded = true,
+                                                         $editable = null, $edithint = null, $editlabel = null) {
+        if (empty($edithint)) {
+            $edithint = new lang_string('editsectionname', 'format_tabtopics');
+        }
+        if (empty($editlabel)) {
+            $course = $this->get_course();
+            $title = get_section_name($course, $section);
+            $editlabel = new lang_string('newsectionname', 'format_tabtopics', $title);
+        }
+        return parent::inplace_editable_render_section_name($section, $linkifneeded, $editable, $edithint, $editlabel);
+    }
+
+}
+
+/**
+ * Implements callback inplace_editable() allowing to edit values in-place.
+ *
+ * @param string $itemtype
+ * @param int $itemid
+ * @param mixed $newvalue
+ * @return \core\output\inplace_editable
+ */
+function format_tabtopics_inplace_editable($itemtype, $itemid, $newvalue) {
+    global $CFG;
+    require_once($CFG->dirroot . '/course/lib.php');
+    if ($itemtype === 'sectionname' || $itemtype === 'sectionnamenl') {
+        global $DB;
+        $section = $DB->get_record_sql(
+            'SELECT s.* FROM {course_sections} s JOIN {course} c ON s.course = c.id WHERE s.id = ? AND c.format = ?',
+            array($itemid, 'tabtopics'), MUST_EXIST);
+        return course_get_format($section->course)->inplace_editable_update_section_name($section, $itemtype, $newvalue);
+    }
+}
+
+/**
+ * The string that is used to describe a section of the course.
+ *
+ * @return string The section description.
+ */
+function callback_tabtopics_definition() {
+    return get_string('sectionname', 'format_tabtopics');
 }

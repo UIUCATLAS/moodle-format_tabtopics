@@ -13,13 +13,18 @@
  * @author      Braedan Jongerius                                         **
  * @author      Dustin Durand                                             **
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later  **
+ *
+ *
+ * January 2018, UI version:
+ * @copyright  2018 University of Illinois at Urbana Champaign {@link http://illinois.edu}
  * *************************************************************************
  * ************************************************************************ */
 
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version = 2014040200;        // The current plugin version (Date: YYYYMMDDXX).
+// $plugin->version = 2014040200;        // The current plugin version (Date: YYYYMMDDXX).
+$plugin->version = 2018012301;        // The current plugin version (Date: YYYYMMDDXX).
 $plugin->requires = 2013051400;        // Requires this Moodle version.
 $plugin->component = 'format_tabtopics';    // Full name of the plugin (used for diagnostics).
 $plugin->maturity = MATURITY_STABLE;
